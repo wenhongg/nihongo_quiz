@@ -2,8 +2,8 @@ name: Generate Daily Quiz
 
 on:
   schedule:
-    # Run at 9:00 AM HKT (1:00 AM UTC) every day
-    - cron: '0 1 * * *'
+    # Run at 9:00 AM ET (1:00 PM UTC) every day
+    - cron: '0 13 * * *'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
