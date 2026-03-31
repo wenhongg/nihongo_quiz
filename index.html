@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wen's Japanese Study Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fa;
+    color: #333;
+    min-height: 100vh;
+  }
+  .container { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 32px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    color: white;
+  }
+  header h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  header p { opacity: 0.85; font-size: 0.9rem; }
+
+  .streak-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  .streak-number {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #667eea;
+    line-height: 1;
+  }
+  .streak-label { font-size: 0.85rem; color: #888; margin-top: 4px; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .stat-value { font-size: 1.4rem; font-weight: 700; color: #333; }
+  .stat-label { font-size: 0.75rem; color: #888; margin-top: 2px; }
+
+  .today-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .today-card h2 { font-size: 1.1rem; margin-bottom: 12px; }
+  .quiz-link {
+    display: block;
+    text-align: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: opacity 0.2s;
+  }
+  .quiz-link:hover { opacity: 0.9; }
+  .quiz-link.done {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: #1a5c3a;
+  }
+  .no-quiz { text-align: center; color: #999; padding: 20px 0; font-size: 0.9rem; }
+
+  .history { margin-top: 8px; }
+  .history h2 { font-size: 1.1rem; margin-bottom: 12px; }
+  .history-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .day-cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #999;
+  }
+  .day-cell.completed { background: #43e97b; color: white; }
+  .day-cell.missed { background: #fee; color: #c33; }
+  .day-cell.today { border: 2px solid #667eea; }
+  .day-cell.future { background: #f0f0f0; }
+  .day-cell.no-quiz { background: #f8f8f8; }
+
+  .history-list { list-style: none; }
+  .history-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: white;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    font-size: 0.9rem;
+  }
+  .history-list .score { font-weight: 600; color: #667eea; }
+  .history-list .score.high { color: #2d9d4e; }
+  .history-list a { color: #667eea; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Japanese Study</h1>
+    <p>N4 Level &middot; Daily Practice</p>
+  </header>
+
+  <div class="streak-card">
+    <div class="streak-number" id="streak">0</div>
+    <div class="streak-label">day streak</div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="totalQuizzes">0</div>
+      <div class="stat-label">quizzes done</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="avgScore">-</div>
+      <div class="stat-label">avg score</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="bestStreak">0</div>
+      <div class="stat-label">best streak</div>
+    </div>
+  </div>
+
+  <div class="today-card">
+    <h2>Today's Quiz</h2>
+    <div id="todayContent">
+      <div class="no-quiz">Loading...</div>
+    </div>
+  </div>
+
+  <div class="history">
+    <h2>Recent History</h2>
+    <ul class="history-list" id="historyList">
+      <li class="no-quiz">Loading...</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  const BASE = 'practice/';
+  const STORAGE_KEY = 'nihongo_quiz_data';
+
+  function getToday() {
+    const d = new Date();
+    return d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+  }
+
+  function getData() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+    catch { return {}; }
+  }
+
+  function calcStreak(data) {
+    let streak = 0;
+    const d = new Date();
+    // Check if today is done, if not start from yesterday
+    const todayStr = getToday();
+    if (!data[todayStr]) d.setDate(d.getDate() - 1);
+    else streak = 0; // will be counted in loop
+
+    if (data[todayStr]) {
+      // Count from today backwards
+      const check = new Date();
+      while (true) {
+        const key = check.getFullYear() + '-' +
+          String(check.getMonth()+1).padStart(2,'0') + '-' +
+          String(check.getDate()).padStart(2,'0');
+        if (data[key]) { streak++; check.setDate(check.getDate()-1); }
+        else break;
+      }
+    } else {
+      // Count from yesterday backwards
+      while (true) {
+        const key = d.getFullYear() + '-' +
+          String(d.getMonth()+1).padStart(2,'0') + '-' +
+          String(d.getDate()).padStart(2,'0');
+        if (data[key]) { streak++; d.setDate(d.getDate()-1); }
+        else break;
+      }
+    }
+    return streak;
+  }
+
+  async function checkQuizExists(date) {
+    try {
+      const res = await fetch(BASE + date + '.html', { method: 'HEAD' });
+      return res.ok;
+    } catch { return false; }
+  }
+
+  async function init() {
+    const data = getData();
+    const today = getToday();
+    const streak = calcStreak(data);
+    const entries = Object.entries(data).sort((a,b) => b[0].localeCompare(a[0]));
+
+    document.getElementById('streak').textContent = streak;
+    document.getElementById('totalQuizzes').textContent = entries.length;
+
+    if (entries.length > 0) {
+      const scores = entries.map(e => e[1].total || 0);
+      const avg = Math.round(scores.reduce((a,b) => a+b, 0) / scores.length);
+      document.getElementById('avgScore').textContent = avg + '%';
+    }
+
+    // Best streak
+    let best = streak;
+    // Simple: just use current streak as best for now, or check stored
+    const storedBest = parseInt(localStorage.getItem('nihongo_best_streak') || '0');
+    best = Math.max(streak, storedBest);
+    localStorage.setItem('nihongo_best_streak', String(best));
+    document.getElementById('bestStreak').textContent = best;
+
+    // Today's quiz
+    const todayEl = document.getElementById('todayContent');
+    const exists = await checkQuizExists(today);
+    if (exists) {
+      if (data[today]) {
+        todayEl.innerHTML = `
+          <a class="quiz-link done" href="${BASE}${today}.html">
+            Completed: ${data[today].total || '?'}% &mdash; Review Again
+          </a>`;
+      } else {
+        todayEl.innerHTML = `
+          <a class="quiz-link" href="${BASE}${today}.html">
+            Start Today's Quiz
+          </a>`;
+      }
+    } else {
+      todayEl.innerHTML = '<div class="no-quiz">Today\'s quiz hasn\'t been generated yet. Check back later!</div>';
+    }
+
+    // History
+    const historyEl = document.getElementById('historyList');
+    if (entries.length === 0) {
+      historyEl.innerHTML = '<li style="color:#999;text-align:center">No quizzes completed yet</li>';
+    } else {
+      historyEl.innerHTML = entries.slice(0, 14).map(([date, info]) => {
+        const scoreClass = (info.total || 0) >= 80 ? 'score high' : 'score';
+        return `<li>
+          <a href="${BASE}${date}.html">${date}</a>
+          <span class="${scoreClass}">${info.total || '?'}%</span>
+        </li>`;
+      }).join('');
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

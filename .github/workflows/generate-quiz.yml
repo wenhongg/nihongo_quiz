@@ -1,0 +1,65 @@
+name: Generate Daily Quiz
+
+on:
+  schedule:
+    # Run at 9:00 AM HKT (1:00 AM UTC) every day
+    - cron: '0 1 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate quiz HTML
+        run: node generate-quiz.js
+
+      - name: Check for new file
+        id: check
+        run: |
+          if git diff --name-only | grep -q 'practice/'; then
+            echo "has_new=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_new=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push
+        if: steps.check.outputs.has_new == 'true'
+        run: |
+          git config user.name "Quiz Bot"
+          git config user.email "bot@github.com"
+          git add practice/
+          DATE=$(date +%Y-%m-%d)
+          git commit -m "Add daily quiz for ${DATE}"
+          git push
+
+      - name: Send Telegram reminder
+        if: steps.check.outputs.has_new == 'true'
+        env:
+          TELE_BOT_TOKEN: ${{ secrets.TELE_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          QUIZ_URL="https://wenhongg.github.io/nihongo_quiz/practice/${DATE}.html"
+          DASHBOARD_URL="https://wenhongg.github.io/nihongo_quiz/"
+
+          curl -s -X POST "https://api.telegram.org/bot${TELE_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${CHAT_ID}" \
+            --data-urlencode "text=📚 Today's Japanese Quiz is Ready!
+
+🗓 ${DATE}
+
+Conjugation drills, vocab quiz, grammar review and sentence challenges are waiting for you.
+
+▶️ Start Quiz: ${QUIZ_URL}
+📊 Dashboard: ${DASHBOARD_URL}"
