@@ -27,7 +27,8 @@ jobs:
       - name: Check for new file
         id: check
         run: |
-          if git diff --name-only | grep -q 'practice/'; then
+          git add practice/
+          if git diff --cached --name-only | grep -q 'practice/'; then
             echo "has_new=true" >> $GITHUB_OUTPUT
           else
             echo "has_new=false" >> $GITHUB_OUTPUT
@@ -38,7 +39,6 @@ jobs:
         run: |
           git config user.name "Quiz Bot"
           git config user.email "bot@github.com"
-          git add practice/
           DATE=$(date +%Y-%m-%d)
           git commit -m "Add daily quiz for ${DATE}"
           git push
